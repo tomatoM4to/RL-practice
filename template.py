@@ -9,18 +9,10 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
         return np.argmax(action_values)
 
 
-def initQTable():
-    q = {}
-    for y in range(1, 25):
-        for x in range(1, 25):
-            key = f"{y}{x}"
-            q[key] = np.zeros(6)
-    return q
-
 def findPlayer(state):
     mask = np.char.startswith(state, 'A')
     pos = np.argwhere(mask)[0]
-    return f"{pos[0]}{pos[1]}"
+    return pos[0], pos[1]
 
 def train(episodes, is_train, show):
     # initialize environment and agent
@@ -30,7 +22,7 @@ def train(episodes, is_train, show):
     agent = GridAdventureRLAgent()
 
     # load Q-table or initialize
-    q = initQTable()
+    q = np.zeros((26, 26, 6))
 
     # hyperparameters
     learning_rate_a = 0.9 # alpha or learning rate
@@ -43,7 +35,7 @@ def train(episodes, is_train, show):
     # train
     for i in range(episodes):
         pre_state = env.reset()[0]
-        pre_state_loc = findPlayer(pre_state)
+        y, x = 1, 1
         total_reward = 0
 
         terminated = False
@@ -51,20 +43,23 @@ def train(episodes, is_train, show):
         while not terminated and not truncated:
         # while not terminated:
             if rng.random() > epsilon:  # epsilon이 작을수록 exploitation
-                action = np.argmax(q[pre_state_loc])
+                action = np.argmax(q[y, x])
             else:  # epsilon이 클수록 exploration
                 action = rng.integers(0, 6)
 
             new_state, reward, terminated, truncated, _ = env.step(action)
+            if action == 2:
+                ny, nx = findPlayer(new_state)
+                # print(f"Player moved to {ny}, {nx}")
+            else:
+                ny, nx = y, x
 
-            new_state_loc = findPlayer(new_state)
-
-            q[pre_state_loc][action] = q[pre_state_loc][action] + learning_rate_a * (
-                reward + discount_factor_g * np.max(q[new_state_loc]) - q[pre_state_loc][action]
+            q[y, x, action] = q[y, x, action] + learning_rate_a * (
+                reward + discount_factor_g * np.max(q[ny, nx]) - q[y, x, action]
             )
 
-            pre_state = new_state
-            pre_state_loc = findPlayer(pre_state)
+            y, x = ny, nx
+            total_reward += reward
 
         epsilon = max(min_epsilon, epsilon - epsilon_decay_rate)
         print(f"Episode {i}, Total Reward: {total_reward}, Epsilon: {epsilon:.4f}")
