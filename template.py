@@ -259,7 +259,7 @@ def train(episodes, show):
             if terminated:
                 reward = -100
             if ny == 24 and nx == 24:
-                reward = 500 + (1000 - step_count)
+                reward = 500
 
             # Q-learning 업데이트
             current_state_index = (y, x, agent.r, agent.get_key_state())
