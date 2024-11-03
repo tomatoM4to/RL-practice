@@ -272,10 +272,11 @@ def train(episodes, show):
             record_reward += reward
 
         # 적응적 파라미터 조정
-        if i < 3000:  # 처음 3000 에피소드는 천천히 감소
-            epsilon = epsilon_start - (epsilon_start - 0.1) * (i / 3000)
+        if i < 2000:  # 처음 3000 에피소드는 천천히 감소
+            epsilon = epsilon_start - (epsilon_start - 0.1) * (i / 2000)
         else:  # 나머지 2000 에피소드에서 0.01까지 감소
-            epsilon = 0.1 - (0.1 - epsilon_end) * ((i - 3000) / 2000)
+            epsilon = 0.1 - (0.1 - epsilon_end) * ((i - 2000) / 1000)
+        learning_rate_a = max(min_learning_rate, 0.2 * (1 - i/3000))
         reward_episodes[i] = record_reward
 
         print(f"Episode {i}: Reward = {record_reward:.2f}, Epsilon = {epsilon:.4f}, Steps = {step_count}, Y={agent.y}, X={agent.x}")
@@ -297,7 +298,7 @@ def train(episodes, show):
     f.close()
 
 if __name__ == '__main__':
-    train(5000, False)
+    train(3000, False)
     # agent = ImprovedGridAdventureRLAgent(1, 1)
     # f = open("grid_adventure.pkl", "rb")
     # agent.q = pickle.load(f)
