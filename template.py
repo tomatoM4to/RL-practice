@@ -12,8 +12,6 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
 
         self.y = y
         self.x = x
-        self.ny = y
-        self.nx = x
 
         self.r = 0 # 0: 오른쪽방향, 1: 아래방향, 2: 왼쪽방향, 3: 위방향
         self.r_name = ["AR", "AD", "AL", "AU"]
@@ -25,11 +23,17 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
         self.red_door = 0
         self.green_door = 0
 
+        # 키와 문의 사용 여부를 추적하기 위한 변수 추가
+        self.used_blue_key = False
+        self.used_red_key = False
+        self.used_green_key = False
+        self.opened_blue_door = False
+        self.opened_red_door = False
+        self.opened_green_door = False
+
     def reset(self, y, x):
         self.y = y
         self.x = x
-        self.ny = y
-        self.nx = x
 
         self.r = 0
         self.blue_key = 0
@@ -40,6 +44,13 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
         self.red_door = 0
         self.green_door = 0
 
+        # 리셋 시 사용 여부도 초기화
+        self.used_blue_key = False
+        self.used_red_key = False
+        self.used_green_key = False
+        self.opened_blue_door = False
+        self.opened_red_door = False
+        self.opened_green_door = False
 
     def rotate(self, cmd):
         if cmd == 0: # 왼쪽
@@ -59,30 +70,27 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
         if cmd == 2: # 앞으로 이동
             r = self.r_name[self.r]
             new_loc = np.where(new_state == r)
-            self.ny, self.nx = new_loc[0][0], new_loc[1][0]
-            # try:
-            #     self.ny, self.nx = new_loc[0][0], new_loc[1][0]
-            # except:
-            #     print(new_loc, r)
-            #     print(new_state)
-            #     exit(1)
+            self.y, self.x = new_loc[0][0], new_loc[1][0]
+            return
 
 
         if cmd == 3: # 키 줍기
-            if self.blue_key == 0:
-                k = np.where(new_state == "KB")
-                if not k:
-                    self.blue_key += 1
+            if self.blue_key == 1 or self.red_key == 1 or self.green_key == 1:
                 return
-            if self.red_key == 0:
-                k = np.where(new_state == "KR")
-                if not k:
-                    self.red_key += 1
+
+            k = np.where(new_state == "KB")
+            if not k:
+                self.blue_key = 1
                 return
-            if self.green_key == 0:
-                k = np.where(new_state == "KG")
-                if not k:
-                    self.green_key += 1
+
+            k = np.where(new_state == "KR")
+            if not k:
+                self.red_key = 1
+                return
+
+            k = np.where(new_state == "KG")
+            if not k:
+                self.green_key = 1
                 return
 
         if cmd == 4: # 키 버리기
@@ -93,17 +101,17 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
             if self.blue_key == 1:
                 k = np.where(new_state == "KB")
                 if k:
-                    self.blue_key -= 0
+                    self.blue_key = 0
                 return
             if self.red_key == 1:
                 k = np.where(new_state == "KR")
                 if k:
-                    self.red_key -= 0
+                    self.red_key = 0
                 return
             if self.green_key == 1:
                 k = np.where(new_state == "KG")
                 if k:
-                    self.green_key -= 0
+                    self.green_key = 0
                 return
 
         if cmd == 5: # 문 열기
@@ -123,35 +131,65 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
                     self.green_door += 1
                     return
 
-    def distance(self, base_reward):
-        if base_reward != 0:
-            return base_reward
+    def get_reward(self, action, new_state):
+        reward = -0.1  # 기본 보상
 
-        old = abs(self.y - 24) + abs(self.x - 24)
-        new = abs(self.ny - 24) + abs(self.nx - 24)
-        self.y, self.x = self.ny, self.nx
-        if new < old:
-            return 5.0
-        elif new > old:
-            return -2.0
-        else:
-            return -1.0
+        # L에 빠졌을 때
+        if new_state[self.y, self.x] == "L":
+            print(new_state[self.y, self.x], "L에 빠짐")
+            return -100
+
+        # 키 줍기 동작(action 3)에 대한 보상
+        if action == 3:
+            # 파란 키
+            if not self.used_blue_key and self.blue_key == 1:
+                self.used_blue_key = True
+                return 50
+            # 빨간 키
+            elif not self.used_red_key and self.red_key == 1:
+                self.used_red_key = True
+                return 50
+            # 초록 키
+            elif not self.used_green_key and self.green_key == 1:
+                self.used_green_key = True
+                return 50
+
+        # 문 열기 동작(action 5)에 대한 보상
+        if action == 5:
+            # 파란 문
+            if not self.opened_blue_door and self.blue_door == 1:
+                self.opened_blue_door = True
+                return 70
+            # 빨간 문
+            elif not self.opened_red_door and self.red_door == 1:
+                self.opened_red_door = True
+                return 70
+            # 초록 문
+            elif not self.opened_green_door and self.green_door == 1:
+                self.opened_green_door = True
+                return 70
+        return reward
 
     def act(self, state):
         return np.argmax(self.q[self.y, self.x])
 
 
-def train(episodes, is_train, show):
+def train(episodes, show):
     env = knu_rl_env.grid_adventure.make_grid_adventure(
         show_screen=show
     )
     agent = GridAdventureRLAgent(1, 1)
 
-    # 하이퍼파라미터 조정
     learning_rate_a = 0.3
-    discount_factor_g = 0.9  # 미래 보상에 더 큰 가중치
+    discount_factor_g = 0.9
     epsilon = 1.0
     rng = np.random.default_rng()
+
+    # Epsilon 감소 관련 파라미터
+    epsilon_start = 1.0
+    epsilon_end = 0.01
+    exploration_episodes = 25000  # 중심 구간을 25000으로 수정
+    total_episodes = 30000       # 총 30000 에피소드
 
     reward_episodes = np.zeros(episodes)
     for i in range(episodes):
@@ -160,54 +198,48 @@ def train(episodes, is_train, show):
         record_reward = 0
         terminated = False
         truncated = False
+
         while not terminated and not truncated:
-            # epsilon-greedy 정책
             if rng.random() < epsilon:
-                action = rng.integers(0, 6)
+                action = rng.integers(0, 6) # 무작위 행동
             else:
-                action = agent.act(state)
+                action = agent.act(state) # 최적 행동
 
-            # action
+            y, x = agent.y, agent.x # 이전 위치 저장
             new_state, base_reward, terminated, truncated, _ = env.step(action)
-            agent.command(action, state, new_state)
-            y, x = agent.y, agent.x
-            if terminated:
-                print("terminated")
-            if truncated:
-                print("truncated")
-            # key 보상
-            if agent.blue_key == 1 or agent.red_key == 1 or agent.green_key == 1:
-                base_reward = 50
-            if agent.blue_key > 1 and agent.red_key > 1 and agent.green_key > 1:
-                base_reward = -50
+            agent.command(action, state, new_state) # agent 상태 업데이트
+            ny, nx = agent.y, agent.x # 현재 위치 저장
 
-            # 문 보상
-            if agent.blue_door == 1 or agent.red_door == 1 or agent.green_door == 1:
-                base_reward = 50
-            elif agent.blue_door > 1 and agent.red_door > 1 and agent.green_door > 1:
-                base_reward = -30
+            # 보상 계산
+            reward = agent.get_reward(action, new_state)
 
-            base_reward = agent.distance(base_reward)
-
-            # 도착지에 도착하면 큰 보상
-            if agent.ny == 24 and agent.nx == 24:
-                base_reward = 99999
+            if ny == 24 and nx == 24:
+                reward = 500
 
             # Q-table 업데이트
             agent.q[y, x, action] = agent.q[y, x, action] + learning_rate_a * (
-                base_reward + discount_factor_g * np.max(agent.q[agent.ny, agent.nx]) - agent.q[y, x, action]
+                reward + discount_factor_g * np.max(agent.q[ny, nx]) - agent.q[y, x, action]
             )
 
             state = new_state
-            record_reward += base_reward
+            record_reward += reward
 
-        epsilon = max(epsilon - 0.001, 0.01)
+        # Epsilon 감소
+        if i < exploration_episodes:
+            # 초기 25000 에피소드: 천천히 감소
+            epsilon = epsilon_start - (epsilon_start - 0.3) * (i / exploration_episodes)
+        else:
+            # 25000 에피소드 이후: 빠르게 감소 (남은 5000 에피소드 동안)
+            remaining_episodes = total_episodes - exploration_episodes
+            current_episode = i - exploration_episodes
+            epsilon = max(0.3 * np.exp(-10 * current_episode / remaining_episodes), epsilon_end)
 
-        if epsilon <= 0:
+        if epsilon <= 0.01:
             learning_rate_a = 0.0001
 
         reward_episodes[i] = record_reward
-        print(f"Episode {i + 1}: {record_reward}")
+        if i % 10 == 0:
+            print(f"Episode {i}: Reward = {record_reward:.2f}, Epsilon = {epsilon:.4f}, Y={agent.y}, X={agent.x}")
 
     env.close()
 
@@ -219,5 +251,5 @@ def train(episodes, is_train, show):
     plt.savefig("grid_adventure.png")
 
 if __name__ == '__main__':
-    train(1000, True, False)
+    train(100, False)
 
