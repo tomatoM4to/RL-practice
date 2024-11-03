@@ -133,36 +133,36 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
                     return
 
     def get_reward(self, action, new_state):
-        reward = -0.2  # 기본 보상
+        reward = -0.1  # 기본 보상
         # 키 줍기 동작(action 3)에 대한 보상
         if action == 3:
             # 파란 키
             if not self.used_blue_key and self.blue_key == 1:
                 self.used_blue_key = True
-                return 50
+                return 7000
             # 빨간 키
             elif not self.used_red_key and self.red_key == 1:
                 self.used_red_key = True
-                return 50
+                return 5000
             # 초록 키
             elif not self.used_green_key and self.green_key == 1:
                 self.used_green_key = True
-                return 50
+                return 5000
 
         # 문 열기 동작(action 5)에 대한 보상
         if action == 5:
             # 파란 문
             if not self.opened_blue_door and self.blue_door == 1:
                 self.opened_blue_door = True
-                return 70
+                return 10000
             # 빨간 문
             elif not self.opened_red_door and self.red_door == 1:
                 self.opened_red_door = True
-                return 70
+                return 10000
             # 초록 문
             elif not self.opened_green_door and self.green_door == 1:
                 self.opened_green_door = True
-                return 70
+                return 10000
         return reward
 
     def act(self, state):
@@ -211,11 +211,11 @@ def train(episodes, show):
 
             # 용암에 빠진 여부
             if terminated:
-                reward = -100
+                reward = -33333
 
             # 목적지 도착 여부
             if ny == 24 and nx == 24:
-                reward = 500
+                reward = 33333
 
             # Q-table 업데이트
             agent.q[y, x, action] = agent.q[y, x, action] + learning_rate_a * (
