@@ -139,7 +139,14 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
                     return
 
     def get_reward(self, action, new_state):
+        goal_y, goal_x = 24, 24
+        current_manhattan = abs(self.y - goal_y) + abs(self.x - goal_x)
+
         reward = -0.1  # 기본 보상
+
+        distance_reward = (48 - current_manhattan) / 48.0  # 0~1 사이의 값
+        reward += distance_reward * 2  # 거리에 따른 보상 가중치 조정
+
         if self.v[self.y, self.x] > 1:
             reward = -0.3
         if self.v[self.y, self.x] > 3:
@@ -184,6 +191,9 @@ def train(episodes, show):
         show_screen=show,
     )
     agent = GridAdventureRLAgent(1, 1)
+    f = open("grid_adventure.pkl", "rb")
+    agent.q = pickle.load(f)
+    f.close()
 
     learning_rate_a = 0.4
     discount_factor_g = 0.8
@@ -236,7 +246,7 @@ def train(episodes, show):
             record_reward += reward
             count += 1
 
-            if count > 20000:
+            if count > 40000:
                 break
         if i < exploration_episodes:
             # 초기 5000 에피소드: 1.0에서 0.3까지 천천히 감소
