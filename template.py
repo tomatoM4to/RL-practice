@@ -165,40 +165,40 @@ class ImprovedGridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent)
         base_reward = -0.01
 
         # 방문 횟수에 기반한 탐험 보상
-        visit_penalty = -0.1 * self.visited[self.y, self.x]
+        visit_penalty = -0.05 * self.visited[self.y, self.x]
         base_reward += visit_penalty
 
-        # 목표지점까지의 맨해튼 거리에 기반한 보상
+        # 목표지점까지의 거리에 기반한 보상
         distance = self.real_distance(self.y, self.x, new_state)
         if distance < self.before_distance:
-            base_reward = 1.0
+            base_reward += 1.0
         else:
-            base_reward = -0.5
+            base_reward -= 0.5
         self.before_distance = distance
 
         # 키 관련 보상
         if action == 3:  # 키 줍기
             if not self.used_blue_key and self.blue_key == 1:
                 self.used_blue_key = True
-                return 50
+                return 30
             elif not self.used_red_key and self.red_key == 1:
                 self.used_red_key = True
-                return 50
+                return 30
             elif not self.used_green_key and self.green_key == 1:
                 self.used_green_key = True
-                return 50
+                return 30
 
         # 문 열기 보상
         if action == 5:
             if not self.opened_blue_door and self.blue_door == 1:
                 self.opened_blue_door = True
-                return 70
+                return 50
             elif not self.opened_red_door and self.red_door == 1:
                 self.opened_red_door = True
-                return 70
+                return 50
             elif not self.opened_green_door and self.green_door == 1:
                 self.opened_green_door = True
-                return 70
+                return 50
 
         return base_reward
 
@@ -217,19 +217,18 @@ def train(episodes, show):
     )
     agent = ImprovedGridAdventureRLAgent(1, 1)
 
-    learning_rate_a = 0.5
-    discount_factor_g = 0.99  # 감가율 증가
+    learning_rate_a = 0.2
+    discount_factor_g = 0.95  # 감가율 증가
     epsilon = 1.0
     rng = np.random.default_rng()
 
     # 적응적 학습률과 입실론
-    min_learning_rate = 0.1
+    min_learning_rate = 0.01
     epsilon_start = 1.0
     epsilon_end = 0.01
 
     reward_episodes = np.zeros(episodes)
     best_reward = float('-inf')
-    no_improvement_count = 0
 
     for i in range(episodes):
         state = env.reset()[0]
@@ -241,7 +240,7 @@ def train(episodes, show):
         truncated = False
         step_count = 0
 
-        while not terminated and step_count < 20000:  # 최대 스텝 수 제한
+        while not terminated and step_count < 15000:  # 최대 스텝 수 제한
             step_count += 1
 
             # 입실론-탐욕적 행동 선택
@@ -273,34 +272,32 @@ def train(episodes, show):
             record_reward += reward
 
         # 적응적 파라미터 조정
-        epsilon = epsilon_start - (epsilon_start - epsilon_end) * (i / (episodes - 1))
-        learning_rate_a = max(min_learning_rate, learning_rate_a * 0.995)
-
-        # 성능 모니터링 및 조기 종료
+        if i < 3000:  # 처음 3000 에피소드는 천천히 감소
+            epsilon = epsilon_start - (epsilon_start - 0.1) * (i / 3000)
+        else:  # 나머지 2000 에피소드에서 0.01까지 감소
+            epsilon = 0.1 - (0.1 - epsilon_end) * ((i - 3000) / 2000)
         reward_episodes[i] = record_reward
-        if record_reward > best_reward:
-            best_reward = record_reward
-            no_improvement_count = 0
-        else:
-            no_improvement_count += 1
 
         print(f"Episode {i}: Reward = {record_reward:.2f}, Epsilon = {epsilon:.4f}, Steps = {step_count}, Y={agent.y}, X={agent.x}")
 
-        if i % 10 == 0:
+        if i % 100 == 0:
             plt.clf()
-            plt.plot(reward_episodes[:i+1])
-            plt.title("Learning Progress")
-            plt.xlabel("Episode")
-            plt.ylabel("Reward")
+            plt.plot(reward_episodes)
             plt.savefig("grid_adventure.png")
-
-            with open("grid_adventure.pkl", "wb") as f:
-                pickle.dump(agent.q, f)
+            f = open("grid_adventure.pkl", "wb")
+            pickle.dump(agent.q, f)
+            f.close()
 
     env.close()
+    plt.clf()
+    plt.plot(reward_episodes)
+    plt.savefig("grid_adventure.png")
+    f = open("grid_adventure.pkl", "wb")
+    pickle.dump(agent.q, f)
+    f.close()
 
 if __name__ == '__main__':
-    train(50, False)
+    train(5000, False)
     # agent = ImprovedGridAdventureRLAgent(1, 1)
     # f = open("grid_adventure.pkl", "rb")
     # agent.q = pickle.load(f)
