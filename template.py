@@ -5,6 +5,7 @@ import pickle
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from time import sleep
 
 class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
     def __init__(self, y, x):
@@ -133,12 +134,6 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
 
     def get_reward(self, action, new_state):
         reward = -0.1  # 기본 보상
-
-        # L에 빠졌을 때
-        if new_state[self.y, self.x] == "L":
-            print(new_state[self.y, self.x], "L에 빠짐")
-            return -100
-
         # 키 줍기 동작(action 3)에 대한 보상
         if action == 3:
             # 파란 키
@@ -188,8 +183,8 @@ def train(episodes, show):
     # Epsilon 감소 관련 파라미터
     epsilon_start = 1.0
     epsilon_end = 0.01
-    exploration_episodes = 25000  # 중심 구간을 25000으로 수정
-    total_episodes = 30000       # 총 30000 에피소드
+    exploration_episodes = 8000  # 중심 구간을 25000으로 수정
+    total_episodes = 10000       # 총 30000 에피소드
 
     reward_episodes = np.zeros(episodes)
     for i in range(episodes):
@@ -213,6 +208,11 @@ def train(episodes, show):
             # 보상 계산
             reward = agent.get_reward(action, new_state)
 
+            # 용암에 빠진 여부
+            if terminated and not truncated:
+                reward = -100
+
+            # 목적지 도착 여부
             if ny == 24 and nx == 24:
                 reward = 500
 
@@ -223,7 +223,6 @@ def train(episodes, show):
 
             state = new_state
             record_reward += reward
-
         # Epsilon 감소
         if i < exploration_episodes:
             # 초기 25000 에피소드: 천천히 감소
@@ -238,18 +237,17 @@ def train(episodes, show):
             learning_rate_a = 0.0001
 
         reward_episodes[i] = record_reward
-        if i % 10 == 0:
+        if i % 100 == 0:
             print(f"Episode {i}: Reward = {record_reward:.2f}, Epsilon = {epsilon:.4f}, Y={agent.y}, X={agent.x}")
+            f = open("grid_adventure.pkl", "wb")
+            pickle.dump(agent.q, f)
+            f.close()
 
     env.close()
-
-    f = open("grid_adventure.pkl", "wb")
-    pickle.dump(agent.q, f)
-    f.close()
 
     plt.plot(reward_episodes)
     plt.savefig("grid_adventure.png")
 
 if __name__ == '__main__':
-    train(100, False)
+    train(10000, False)
 
