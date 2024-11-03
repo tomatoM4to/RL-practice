@@ -133,7 +133,7 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
                     return
 
     def get_reward(self, action, new_state):
-        reward = -0.1  # 기본 보상
+        reward = -0.2  # 기본 보상
         # 키 줍기 동작(action 3)에 대한 보상
         if action == 3:
             # 파란 키
@@ -175,16 +175,17 @@ def train(episodes, show):
     )
     agent = GridAdventureRLAgent(1, 1)
 
-    learning_rate_a = 0.3
-    discount_factor_g = 0.9
+    learning_rate_a = 0.5
+    discount_factor_g = 0.95
     epsilon = 1.0
     rng = np.random.default_rng()
 
     # Epsilon 감소 관련 파라미터
     epsilon_start = 1.0
+    epsilon_middle = 0.3
     epsilon_end = 0.01
-    exploration_episodes = 8000  # 중심 구간을 25000으로 수정
-    total_episodes = 10000       # 총 30000 에피소드
+    exploration_episodes = 5000
+    exploitation_episodes = 3000
 
     reward_episodes = np.zeros(episodes)
     for i in range(episodes):
@@ -194,7 +195,7 @@ def train(episodes, show):
         terminated = False
         truncated = False
 
-        while not terminated and not truncated:
+        while not terminated:
             if rng.random() < epsilon:
                 action = rng.integers(0, 6) # 무작위 행동
             else:
@@ -209,7 +210,7 @@ def train(episodes, show):
             reward = agent.get_reward(action, new_state)
 
             # 용암에 빠진 여부
-            if terminated and not truncated:
+            if terminated:
                 reward = -100
 
             # 목적지 도착 여부
@@ -223,22 +224,21 @@ def train(episodes, show):
 
             state = new_state
             record_reward += reward
-        # Epsilon 감소
         if i < exploration_episodes:
-            # 초기 25000 에피소드: 천천히 감소
-            epsilon = epsilon_start - (epsilon_start - 0.3) * (i / exploration_episodes)
+            # 초기 5000 에피소드: 1.0에서 0.3까지 천천히 감소
+            epsilon = epsilon_start - (epsilon_start - epsilon_middle) * (i / exploration_episodes)
         else:
-            # 25000 에피소드 이후: 빠르게 감소 (남은 5000 에피소드 동안)
-            remaining_episodes = total_episodes - exploration_episodes
+            # 5000 에피소드 이후: 0.3에서 0.01까지 빠르게 감소
+            remaining_episodes = exploitation_episodes
             current_episode = i - exploration_episodes
-            epsilon = max(0.3 * np.exp(-10 * current_episode / remaining_episodes), epsilon_end)
+            epsilon = max(epsilon_middle * np.exp(-5 * current_episode / remaining_episodes), epsilon_end)
 
         if epsilon <= 0.01:
             learning_rate_a = 0.0001
 
         reward_episodes[i] = record_reward
+        print(f"Episode {i}: Reward = {record_reward:.2f}, Epsilon = {epsilon:.4f}, Y={agent.y}, X={agent.x}")
         if i % 100 == 0:
-            print(f"Episode {i}: Reward = {record_reward:.2f}, Epsilon = {epsilon:.4f}, Y={agent.y}, X={agent.x}")
             f = open("grid_adventure.pkl", "wb")
             pickle.dump(agent.q, f)
             f.close()
@@ -249,5 +249,5 @@ def train(episodes, show):
     plt.savefig("grid_adventure.png")
 
 if __name__ == '__main__':
-    train(10000, False)
+    train(8000, False)
 
