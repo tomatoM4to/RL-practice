@@ -14,6 +14,8 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
         self.y = y
         self.x = x
 
+        self.v = np.zeros((26, 26))
+
         self.r = 0 # 0: 오른쪽방향, 1: 아래방향, 2: 왼쪽방향, 3: 위방향
         self.r_name = ["AR", "AD", "AL", "AU"]
         self.blue_key = 0
@@ -37,6 +39,9 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
         self.x = x
 
         self.r = 0
+
+        self.v = np.zeros((26, 26))
+
         self.blue_key = 0
         self.red_key = 0
         self.green_key = 0
@@ -72,6 +77,7 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
             r = self.r_name[self.r]
             new_loc = np.where(new_state == r)
             self.y, self.x = new_loc[0][0], new_loc[1][0]
+            self.v[self.y, self.x] += 1
             return
 
 
@@ -134,6 +140,10 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
 
     def get_reward(self, action, new_state):
         reward = -0.1  # 기본 보상
+        if self.v[self.y, self.x] > 1:
+            reward = -0.3
+        if self.v[self.y, self.x] > 3:
+            reward = -0.5
         # 키 줍기 동작(action 3)에 대한 보상
         if action == 3:
             # 파란 키
@@ -175,8 +185,8 @@ def train(episodes, show):
     )
     agent = GridAdventureRLAgent(1, 1)
 
-    learning_rate_a = 0.5
-    discount_factor_g = 0.95
+    learning_rate_a = 0.4
+    discount_factor_g = 0.8
     epsilon = 1.0
     rng = np.random.default_rng()
 
@@ -184,8 +194,8 @@ def train(episodes, show):
     epsilon_start = 1.0
     epsilon_middle = 0.3
     epsilon_end = 0.01
-    exploration_episodes = 600
-    exploitation_episodes = 400
+    exploration_episodes = 70
+    exploitation_episodes = 30
 
     reward_episodes = np.zeros(episodes)
     for i in range(episodes):
@@ -194,7 +204,7 @@ def train(episodes, show):
         record_reward = 0
         terminated = False
         truncated = False
-
+        count = 0
         while not terminated:
             if rng.random() < epsilon:
                 action = rng.integers(0, 6) # 무작위 행동
@@ -215,7 +225,7 @@ def train(episodes, show):
 
             # 목적지 도착 여부
             if ny == 24 and nx == 24:
-                reward = 33333
+                reward = 333333
 
             # Q-table 업데이트
             agent.q[y, x, action] = agent.q[y, x, action] + learning_rate_a * (
@@ -224,6 +234,10 @@ def train(episodes, show):
 
             state = new_state
             record_reward += reward
+            count += 1
+
+            if count > 20000:
+                break
         if i < exploration_episodes:
             # 초기 5000 에피소드: 1.0에서 0.3까지 천천히 감소
             epsilon = epsilon_start - (epsilon_start - epsilon_middle) * (i / exploration_episodes)
@@ -238,7 +252,7 @@ def train(episodes, show):
 
         reward_episodes[i] = record_reward
         print(f"Episode {i}: Reward = {record_reward:.2f}, Epsilon = {epsilon:.4f}, Y={agent.y}, X={agent.x}")
-        if i % 200 == 0:
+        if i % 10 == 0:
             f = open("grid_adventure.pkl", "wb")
             pickle.dump(agent.q, f)
             f.close()
@@ -253,5 +267,10 @@ def train(episodes, show):
     plt.savefig("grid_adventure.png")
 
 if __name__ == '__main__':
-    train(8000, False)
+    # train(100, False)
+    agent = GridAdventureRLAgent(1, 1)
+    f = open("grid_adventure.pkl", "rb")
+    agent.q = pickle.load(f)
+    f.close()
+    knu_rl_env.grid_adventure.evaluate(agent)
 
