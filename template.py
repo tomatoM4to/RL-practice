@@ -171,7 +171,7 @@ class GridAdventureRLAgent(knu_rl_env.grid_adventure.GridAdventureAgent):
 
 def train(episodes, show):
     env = knu_rl_env.grid_adventure.make_grid_adventure(
-        show_screen=show
+        show_screen=show,
     )
     agent = GridAdventureRLAgent(1, 1)
 
@@ -184,8 +184,8 @@ def train(episodes, show):
     epsilon_start = 1.0
     epsilon_middle = 0.3
     epsilon_end = 0.01
-    exploration_episodes = 5000
-    exploitation_episodes = 3000
+    exploration_episodes = 600
+    exploitation_episodes = 400
 
     reward_episodes = np.zeros(episodes)
     for i in range(episodes):
@@ -233,17 +233,21 @@ def train(episodes, show):
             current_episode = i - exploration_episodes
             epsilon = max(epsilon_middle * np.exp(-5 * current_episode / remaining_episodes), epsilon_end)
 
-        if epsilon <= 0.01:
-            learning_rate_a = 0.0001
+        if i > exploration_episodes:
+            learning_rate_a = max(0.3 * np.exp(-3 * (i - exploration_episodes) / exploitation_episodes), 0.01)
 
         reward_episodes[i] = record_reward
         print(f"Episode {i}: Reward = {record_reward:.2f}, Epsilon = {epsilon:.4f}, Y={agent.y}, X={agent.x}")
-        if i % 100 == 0:
+        if i % 200 == 0:
             f = open("grid_adventure.pkl", "wb")
             pickle.dump(agent.q, f)
             f.close()
 
     env.close()
+
+    f = open("grid_adventure.pkl", "wb")
+    pickle.dump(agent.q, f)
+    f.close()
 
     plt.plot(reward_episodes)
     plt.savefig("grid_adventure.png")
